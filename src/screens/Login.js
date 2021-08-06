@@ -1,105 +1,26 @@
+import { useMutation } from "@apollo/client";
 import {
-  faFacebook,
-  faFacebookF,
   faFacebookSquare,
   faInstagram,
 } from "@fortawesome/free-brands-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { useForm } from "react-hook-form";
+import { useLocation } from "react-router-dom";
 import styled from "styled-components";
+import { logUserIn } from "../apollo";
+import AuthLayout from "../components/auth/AuthLayout";
+import BottomBox from "../components/auth/BottomBox";
+import Button from "../components/auth/Button";
+import FormBox from "../components/auth/FormBox";
+import FormError from "../components/auth/FormError";
+import Input from "../components/auth/Input";
+import Separator from "../components/auth/Separator";
+import PageTitle from "../components/PageTitle";
+import routes from "../routes";
+import { LOGIN_MUTATION } from "../hooks/auth/LoginFunction"
 
-const Title = styled.h1`
-  color: ${(props) => props.theme.fontColor};
-`;
-
-const Container = styled.div`
-  display: flex;
-  height: 100vh;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-`;
-
-const WhiteBox = styled.div`
-  background-color: ffffff;
-  width: 100%;
-`;
-
-const TopBox = styled(WhiteBox)`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-  margin-bottom: 10px;
-  border-radius:30px;
-  form {
-    margin-top: 35px;
-    width: 100%;
-    display: flex;
-    justify-items: center;
-    flex-direction: column;
-    align-items: center;
-    input {
-      width: 100%;
-      border-radius: 5px;
-      padding: 7px;
-      background-color: white;
-      border: 2px solid #2237f4;
-      margin-top: 15px;
-      height:40px;
-      box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
-      &::placeholder {
-        font-size: 16px;
-        color:#2237f4;
-        padding:5px;
-
-      }
-      &:last-child {
-        border: none;
-        margin-top: 12px;
-        background-color:#2237f4;
-        color: white;
-        text-align: center;
-        padding: 8px 
-        font-weight: 600;
-      }
-    }
-  }
-`;
-
-const BottomBox = styled(WhiteBox)`
-  padding: 20px 0px;
-  text-align: center;
-  outline:none;
-  a {
-    font-weight: 600;
-    color: #2237f4;
-  }
-`;
-
-const Wrapper = styled.div`
-  max-width: 350px;
-  width: 100%;
-  border-radius:30px;
-  background-color:white;
-  `;
-
-const Separator = styled.div`
-  margin: 20px 0px 30px 0px;
-  text-transform: uppercase;
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  align-items: center;
-  div {
-    width: 100%;
-    height: 1px;
-    background-color: white;
-  }
-  span {
-    margin: 0px 10px;
-    font-weight: 600;
-    color: #8e8e8e;
-  }
+const Notification = styled.div`
+  color: #2ecc71;
 `;
 
 const FacebookLogin = styled.div`
@@ -110,55 +31,110 @@ const FacebookLogin = styled.div`
   }
 `;
 
-const TextWrapperBig = styled.div`
-    color: #2237f4;
-    font-weight: 400;
-    font-size: 100px;
-    width:100%;
-    margin-top:20px;
-    font-family: Righteous, cursive;
-    margin-bottom:5px;
-    max-width:350px;
-    text-align:center;
-`
-
-const TextWrapperSmall = styled.div`
-    color:black;
-    font-weight: 300;
-    font-size: 30px;
-    width:100%;
-    font-family: roboto;
-    margin-bottom:30px;
-    max-width:350px;
-`
 function Login() {
+  const location = useLocation();
+  const {
+    register,
+    handleSubmit,
+    formState,
+    getValues,
+    setError,
+    clearErrors,
+  } = useForm({
+    mode: "onChange",
+  });
+
+  const onCompleted = (data) => {
+    const {
+      login: { ok, error, token },
+    } = data;
+    if (!ok) {
+      return setError("result", { message: error });
+    }
+
+    if (token) {
+      logUserIn(token)
+    }
+  };
+
+  const [login, { loading }] = useMutation(LOGIN_MUTATION, {
+    onCompleted,
+  });
+
+  const onSubmitValid = (data) => {
+    if (loading) {
+      return;
+    }
+    const { username, password } = getValues();
+    login({
+      variables: {
+        username,
+        password,
+      },
+    });
+  };
+
+  const clearLoginError = () => {
+    clearErrors("result");
+  };
+
   return (
-    <Container>
-        <TextWrapperBig>
-          LOGIN
-        </TextWrapperBig>
-      <Wrapper>
-        <TopBox>
-          <form>
-            <input type="text" placeholder="email"  />
-            <input type="password" placeholder="password" />
-            <input type="submit" />
-          </form>
-          <Separator>
-            <div></div>
-            <span>Or</span>
-            <div></div>
-          </Separator>
-          <FacebookLogin>
-            <FontAwesomeIcon icon={faFacebookSquare} />
-            <span>페이스북으로 로그인</span>
-          </FacebookLogin>
-        </TopBox>
-      </Wrapper>
-        <BottomBox>
-          <span>계정이 없으신가요?</span> <a href="#">회원가입</a>
-        </BottomBox>
-    </Container>
+    <AuthLayout>
+      <PageTitle title="Login" />
+      <FormBox>
+        <div>
+          <FontAwesomeIcon icon={faInstagram} size="3x" />
+        </div>
+        <Notification>{location?.state?.message}</Notification>
+        <form onSubmit={handleSubmit(onSubmitValid)}>
+          <Input
+            {...register("username", {
+              required: "Username is required",
+              minLength: {
+                value: 5,
+                message: "Username should be longer than 5 chars.",
+              },
+            })}
+            onFocus={() => clearLoginError()}
+            type="text"
+            placeholder="Username"
+            hasError={Boolean(formState.errors?.username?.message)}
+          />
+          <FormError message={formState.errors?.username?.message} />
+          <Input
+            {...register("password", {
+              required: "password is required",
+              minLength: {
+                value: 8,
+                message: "Password should be longer than 8 chars.",
+              },
+            })}
+            onFocus={() => clearLoginError()}
+            name="password"
+            type="password"
+            placeholder="Password"
+            hasError={Boolean(formState.errors?.password?.message)}
+          />
+          <FormError message={formState.errors?.password?.message} />
+          <Button
+            type="submit"
+            value={loading ? "loading" : "Log In"}
+            disabled={!formState.isValid || loading}
+          />
+          <FormError message={formState.errors?.result?.message} />
+        </form>
+        <Separator />
+        <FacebookLogin>
+          <FontAwesomeIcon icon={faFacebookSquare} />
+          <span>Log in with Facebook</span>
+        </FacebookLogin>
+      </FormBox>
+      <BottomBox
+        cta="Don't have an account?"
+        linkText="Sign up"
+        link={routes.signUp}
+      />
+    </AuthLayout>
   );
 }
 export default Login;
